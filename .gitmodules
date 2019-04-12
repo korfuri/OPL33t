@@ -1,0 +1,9 @@
+[submodule "src/deps/adplug"]
+	path = src/deps/adplug
+	url = https://github.com/adplug/adplug.git
+[submodule "src/deps/libbinio"]
+	path = src/deps/libbinio
+	url = https://github.com/adplug/libbinio.git
+[submodule "src/deps/adlmidi"]
+	path = src/deps/adlmidi
+	url = git://bisqwit.iki.fi/adlmidi.git
