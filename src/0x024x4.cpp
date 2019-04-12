@@ -1,4 +1,6 @@
 #include "Template.hpp"
+#include "dsp/digital.hpp"
+#include <list>
 
 #include <iostream>
 #include <iomanip>
@@ -167,12 +169,17 @@ struct YM38126x4 : Module {
     DECAY_1_PARAM, DECAY_2_PARAM, DECAY_3_PARAM, DECAY_4_PARAM,
     SUSTAIN_1_PARAM, SUSTAIN_2_PARAM, SUSTAIN_3_PARAM, SUSTAIN_4_PARAM,
     RELEASE_1_PARAM, RELEASE_2_PARAM, RELEASE_3_PARAM, RELEASE_4_PARAM,
+    NUM_SAVEABLE_PARAMS,
+    // These params can't be saved/automated by CV
+    LEARN_0_PARAM, LEARN_1_PARAM, LEARN_2_PARAM, LEARN_3_PARAM, LEARN_4_PARAM, LEARN_5_PARAM,
+    UNLEARN_PARAM,
     NUM_PARAMS
   };
   enum InputIds {
     GATE_0_INPUT,
     CV_0_INPUT = GATE_0_INPUT + 6,
-    NUM_INPUTS = CV_0_INPUT + 6
+    PARAMETER_0_INPUT = CV_0_INPUT + 6,
+    NUM_INPUTS = PARAMETER_0_INPUT + 6
   };
   enum OutputIds {
     LEFT_OUTPUT,
@@ -180,15 +187,42 @@ struct YM38126x4 : Module {
     NUM_OUTPUTS
   };
   enum LightIds {
+    LEARNED_PARAM_LIGHTS,
+    LEARNING_LIGHT_R = LEARNED_PARAM_LIGHTS + NUM_SAVEABLE_PARAMS * 3,
+    LEARNING_LIGHT_G,
+    LEARNING_LIGHT_B,
     NUM_LIGHTS
   };
 
   // CEmuopl opl_;
   DBOPL::Handler opl_;
+
+  // Parameter learning stuff
+  enum LearningStatus {
+    NOT_LEARNING,
+    LEARNING_0, LEARNING_1, LEARNING_2, LEARNING_3, LEARNING_4, LEARNING_5,
+    UNLEARNING
+  };
+  LearningStatus learningStatus_ = LearningStatus::NOT_LEARNING;
+  int learnedParams[NUM_SAVEABLE_PARAMS];
+  SchmittTrigger learningButton[6];
+  SchmittTrigger unlearningButton;
+  unsigned int nstep = 0;
+  float paramsSavedValues[NUM_SAVEABLE_PARAMS];
+
+  float kColorForLearningChannel[8][3] = {
+    {0.0f, 0.0f, 0.0f}, // NOT_LEARNING
+    {1.0f, 0.0f, 0.0f}, // LEARNING_0 through 6
+    {0.0f, 1.0f, 0.0f},
+    {0.0f, 0.0f, 1.0f},
+    {1.0f, 1.0f, 0.0f},
+    {0.0f, 1.0f, 1.0f},
+    {1.0f, 0.0f, 1.0f},
+    {1.0f, 1.0f, 1.0f}, // UNLEARNING
+  };
   
   YM38126x4() :
     Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS)//,
-    // opl_(44100 /* rate */, true /* use16bit */, true /* usestereo */) // TODO test different rate
   {
     // In 6x4 mode we enable 6 4-op channels.
     // For each channel, there are 4 operators (ops: A, B, C, D)
@@ -201,7 +235,7 @@ struct YM38126x4 : Module {
     // We treat all voices as the same instrument, so it's a single 6-voices instrument.
     // This means that all writes that affect an operator are done 6 times, for each operator.
 
-    opl_.Init(44100);
+    opl_.Init(44100); // TODO handle other rates!
     
     // Init code
     for (unsigned int i = 0x00; i < 0x300; ++i) {
@@ -210,9 +244,15 @@ struct YM38126x4 : Module {
     opl_.WriteReg(0x01, 1<<5); // Enable waveform selection per operator
     opl_.WriteReg(0x105, 0x01); // Enable OPL3 features
     opl_.WriteReg(0x104, 0xff); // Enable 4-OP for all 6 channels
+
+    for (auto& lp : learnedParams) {
+      lp = -1;
+    }
   }
 
-  // void reset() { OPLResetChip(opl_); } // TODO something like that
+  void reset() override {
+    opl_.Init(44100); // TODO handle other rates!
+  }
 
   static unsigned int OperatorRegister(unsigned base, unsigned int op) {
     // Operator registers are not continuous. This is a formula
@@ -235,16 +275,78 @@ struct YM38126x4 : Module {
     opl_.WriteReg(reg, value);
   }
 
-  uint8_t scaleParam(int param, float maxvalue, uint8_t mask) {
-    float value = params[param].value / maxvalue;
+  uint8_t getScaledParam(int param, float maxvalue, uint8_t mask) {
+    float value = 0.f;
+    if (learnedParams[param] != -1) {
+      value = clampf(inputs[PARAMETER_0_INPUT + learnedParams[param]].value, 0.f, 10.f) / 10.f * maxvalue;      
+    }
+    value += params[param].value;
+    value = clampf(value, 0.f, 10.f);
+    value /= maxvalue;
+    if (value < 0.f) {
+      return (uint8_t)(0);
+    }
     return static_cast<uint8_t>(round((float)mask * value));
   }
-  
-  unsigned int nstep = 0;
 
+  void saveAllParams() {
+    for (unsigned int i = 0; i < NUM_SAVEABLE_PARAMS; ++i) {
+      paramsSavedValues[i] = params[i].value;
+    }
+  }
+
+  void setLearningStatus(LearningStatus l) {
+    learningStatus_ = l;
+    lights[LEARNING_LIGHT_R].value = kColorForLearningChannel[l][0];
+    lights[LEARNING_LIGHT_G].value = kColorForLearningChannel[l][1];
+    lights[LEARNING_LIGHT_B].value = kColorForLearningChannel[l][2];
+  }
+  
   void step() override {
     nstep++;
 
+    // Learning params
+    for (int i = 0; i < 6; ++i) {
+      if (learningButton[i].process(params[LEARN_0_PARAM + i].value)) {
+	if (learningStatus_ == LearningStatus::LEARNING_0 + i) {
+	  setLearningStatus(LearningStatus::NOT_LEARNING);
+	} else {
+	  setLearningStatus((LearningStatus)(LearningStatus::LEARNING_0 + i));
+	  saveAllParams();
+	}
+      }
+    }
+    if (unlearningButton.process(params[UNLEARN_PARAM].value)) {
+      if (learningStatus_ == LearningStatus::UNLEARNING) {
+	setLearningStatus(LearningStatus::NOT_LEARNING);
+      } else {
+	setLearningStatus(LearningStatus::UNLEARNING);
+	saveAllParams();
+      }
+    }
+    if (learningStatus_ != LearningStatus::NOT_LEARNING) {
+      for (unsigned int p = 0; p < NUM_SAVEABLE_PARAMS; ++p) {
+	if (paramsSavedValues[p] != params[p].value) {
+	  if (learningStatus_ == LearningStatus::UNLEARNING) {
+	    for (unsigned int s = 0; s < 6; ++s) {
+	      learnedParams[p] = -1;
+	      lights[LEARNED_PARAM_LIGHTS + p * 3].value = 0.f;
+	      lights[LEARNED_PARAM_LIGHTS + p * 3 + 1].value = 0.f;
+	      lights[LEARNED_PARAM_LIGHTS + p * 3 + 2].value = 0.f;
+	    }
+	  } else {
+	    unsigned int s = learningStatus_ - LearningStatus::LEARNING_0;
+	    learnedParams[p] = s;
+	    lights[LEARNED_PARAM_LIGHTS + p * 3].value = kColorForLearningChannel[learningStatus_][0];
+	    lights[LEARNED_PARAM_LIGHTS + p * 3 + 1].value = kColorForLearningChannel[learningStatus_][1];
+	    lights[LEARNED_PARAM_LIGHTS + p * 3 + 2].value = kColorForLearningChannel[learningStatus_][2];
+	  }
+	  setLearningStatus(LearningStatus::NOT_LEARNING);
+	  break;
+	}
+      }
+    }
+    
     //// Configure the chip
     // 21	Operator 1	Tremolo/Vibrato/Sustain/KSR/Multiplication
     // 24	Operator 2	Tremolo/Vibrato/Sustain/KSR/Multiplication
@@ -253,11 +355,11 @@ struct YM38126x4 : Module {
     if (nstep == 1) {
       for (unsigned int op = 0; op < 4; ++op) {
 	OperatorConfigEffects o{
-	tremolo: params[TREMOLO_1_PARAM + op].value > 0.5f,
-	    vibrato: params[VIBRATO_1_PARAM + op].value > 0.5f,
-	    sustain: params[SUSTAIN_TOGGLE_1_PARAM + op].value > 0.5f,
-	    ksr: params[KSR_1_PARAM + op].value > 0.5f,
-	    multi: scaleParam(MULTI_1_PARAM + op, 15.0, 0xf), //0xf & static_cast<unsigned int>(params[MULTI_1_PARAM + op].value),
+	tremolo: getScaledParam(TREMOLO_1_PARAM + op, 1.0, 0x1),
+	    vibrato: getScaledParam(VIBRATO_1_PARAM + op, 1.0, 0x1),
+	    sustain: getScaledParam(SUSTAIN_TOGGLE_1_PARAM + op, 1.0, 0x1),
+	    ksr: getScaledParam(KSR_1_PARAM + op, 1.0, 0x1),
+	    multi: getScaledParam(MULTI_1_PARAM + op, 15.0, 0xf),
 	    };
 	for (unsigned int ch = 0; ch < 6; ++ch) {
 	  writeRegister(OperatorRegister(0x20, kHWOperatorForChannel[ch] + 3*op), o.value());
@@ -272,8 +374,8 @@ struct YM38126x4 : Module {
     if (nstep == 2) {
       for (unsigned int op = 0; op < 4; ++op) {
 	OperatorConfigLevels o{
-	ksl: 0xf & (unsigned int)params[KSL_1_PARAM + op].value,
-	    level: 0xf & (unsigned int)params[ATTENUATION_1_PARAM + op].value,
+	ksl: getScaledParam(KSL_1_PARAM + op, 1.0, 0x1),
+	    level: getScaledParam(ATTENUATION_1_PARAM + op, 1.0, 0x1),
 	    };
 	for (unsigned int ch = 0; ch < 6; ++ch) {
 	  writeRegister(OperatorRegister(0x40, kHWOperatorForChannel[ch] + 3*op), o.value());
@@ -288,8 +390,8 @@ struct YM38126x4 : Module {
     if (nstep == 3) {
       for (unsigned int op = 0; op < 4; ++op) {
 	OperatorConfigAtkDec o{
-	attack: 0xf & (unsigned int)params[ATTACK_1_PARAM + op].value,
-	    decay: 0xf & (unsigned int)params[DECAY_1_PARAM + op].value,
+	attack: getScaledParam(ATTACK_1_PARAM + op, 15.0, 0xf),
+	    decay: getScaledParam(DECAY_1_PARAM + op, 15.0, 0xf),
 	    };
 	for (unsigned int ch = 0; ch < 6; ++ch) {
 	  writeRegister(OperatorRegister(0x60, kHWOperatorForChannel[ch] + 3*op), o.value());
@@ -304,8 +406,8 @@ struct YM38126x4 : Module {
     if (nstep == 4) {
       for (unsigned int op = 0; op < 4; ++op) {
 	OperatorConfigSusRel o{
-	sustain: 0xf & (unsigned int)params[SUSTAIN_1_PARAM + op].value,
-	    release: 0xf & (unsigned int)params[RELEASE_1_PARAM + op].value,
+	sustain: getScaledParam(SUSTAIN_1_PARAM + op, 15.0, 0xf),
+	    release: getScaledParam(RELEASE_1_PARAM + op, 15.0, 0xf),
 	    };
 	for (unsigned int ch = 0; ch < 6; ++ch) {
 	  writeRegister(OperatorRegister(0x80, kHWOperatorForChannel[ch] + 3*op), o.value());
@@ -348,7 +450,7 @@ struct YM38126x4 : Module {
     if (nstep == 6) {
       for (unsigned int op = 0; op < 4; ++op) {
 	OperatorConfigWaveform o{
-	waveform: params[WAVEFORM_1_PARAM + op].value,
+	waveform: getScaledParam(WAVEFORM_1_PARAM + op, 7.0f, 0x7),
 	    };
 	for (unsigned int ch = 0; ch < 6; ++ch) {
 	  writeRegister(OperatorRegister(0xE0, kHWOperatorForChannel[ch] + 3*op), o.value());
@@ -363,19 +465,19 @@ struct YM38126x4 : Module {
     if (nstep == 7) {
       for (unsigned int ch = 0; ch < kChannels; ++ch) {
 	Note n;
-	if (n.computeOPLParamsFromCV(inputs[CV_0_INPUT + ch].value)) {
-	  ChannelConfigNote o{};
-	  o.A.freqlow8bits = n.freqLo;
+	bool keyon = n.computeOPLParamsFromCV(inputs[CV_0_INPUT + ch].value) &&
+	  (inputs[GATE_0_INPUT + ch].value > 1.0f); // TODO use a proper schmitt trigger
+	ChannelConfigNote o{};
+	o.A.freqlow8bits = n.freqLo;
 
-	  o.B.keyon = (inputs[GATE_0_INPUT + ch].value > 1.0f); // TODO
-	  o.B.block = n.block;
-	  o.B.freqhi2bits = n.freqHi;
-
-	  writeRegister(ChannelRegister(0xA0, kHWChannels[ch]), o.A.value());
-	  writeRegister(ChannelRegister(0xA0, kHWChannels[ch] + 3), o.A.value());
-	  writeRegister(ChannelRegister(0xB0, kHWChannels[ch]), o.B.value());
-	  writeRegister(ChannelRegister(0xB0, kHWChannels[ch] + 3), o.B.value());
-	}
+	o.B.keyon = keyon;
+	o.B.block = n.block;
+	o.B.freqhi2bits = n.freqHi;
+	
+	writeRegister(ChannelRegister(0xA0, kHWChannels[ch]), o.A.value());
+	writeRegister(ChannelRegister(0xA0, kHWChannels[ch] + 3), o.A.value());
+	writeRegister(ChannelRegister(0xB0, kHWChannels[ch]), o.B.value());
+	writeRegister(ChannelRegister(0xB0, kHWChannels[ch] + 3), o.B.value());
       }
     }
 
@@ -388,7 +490,6 @@ struct YM38126x4 : Module {
     //// Synthesize sound
     static const int kSamples = 1;
     int32_t buf[kSamples * 2]; // 2 channels
-    //opl_.update(buf, samples);
     opl_.chip.GenerateBlock3(kSamples, buf);
     outputs[LEFT_OUTPUT].value = (float)buf[0] / (float)0x7fff * 10.f;
     outputs[RIGHT_OUTPUT].value = (float)buf[1] / (float)0x7fff * 10.f;
@@ -404,6 +505,10 @@ struct SnappyKnob : Davies1900hBlackKnob {
 struct YM38126x4Widget : ModuleWidget {
   YM38126x4* module_;
 
+  void addLightForLearnableParam(Vec v, YM38126x4* module, int ParamID) {
+    addChild(ModuleLightWidget::create<SmallLight<RedGreenBlueLight>>(v, module, YM38126x4::LEARNED_PARAM_LIGHTS + ParamID * 3));
+  }
+  
   YM38126x4Widget(YM38126x4 *module) : ModuleWidget(module), module_(module) {
     setPanel(SVG::load(assetPlugin(plugin, "res/YM38126x4.svg")));
 
@@ -416,6 +521,7 @@ struct YM38126x4Widget : ModuleWidget {
     for (unsigned int i = 0; i < 4; ++i) {
       // Line 1: OperatorConfigEffects
       addParam(ParamWidget::create<BefacoSwitch>(Vec(175*i + 15, 20), module, YM38126x4::TREMOLO_1_PARAM + i, 0.0, 1.0, 0.0));
+      addLightForLearnableParam(Vec(175*i + 20, 20), module, YM38126x4::TREMOLO_1_PARAM + i);
       addParam(ParamWidget::create<BefacoSwitch>(Vec(175*i + 45, 20), module, YM38126x4::VIBRATO_1_PARAM + i, 0.0, 1.0, 0.0));
       addParam(ParamWidget::create<BefacoSwitch>(Vec(175*i + 75, 20), module, YM38126x4::SUSTAIN_TOGGLE_1_PARAM + i, 0.0, 1.0, 0.0));
       addParam(ParamWidget::create<BefacoSwitch>(Vec(175*i + 105, 20), module, YM38126x4::KSR_1_PARAM + i, 0.0, 1.0, 0.0));
@@ -444,11 +550,20 @@ struct YM38126x4Widget : ModuleWidget {
       addInput(Port::create<PJ301MPort>(Vec(80 + i * 30, 270), Port::INPUT, module, YM38126x4::CV_0_INPUT + i));
     }
 
-
+    // CV parameter inputs
+    for (unsigned int i = 0; i < 6; ++i) {
+      addInput(Port::create<PJ301MPort>(Vec(300 + i * 30, 280), Port::INPUT, module, YM38126x4::PARAMETER_0_INPUT + i));
+      addParam(ParamWidget::create<CKD6>(Vec(300 + i * 30, 310), module, YM38126x4::LEARN_0_PARAM + i, -1.0f, 1.0f, -1.0f));
+    }
+    // unlearn button
+    addParam(ParamWidget::create<CKD6>(Vec(300 + 6 * 30, 310), module, YM38126x4::UNLEARN_PARAM, -1.0f, 1.0f, -1.0f));
+    // Learn status LED
+    addChild(ModuleLightWidget::create<LargeLight<RedGreenBlueLight>>(Vec(300 + 6 * 30, 280), module, YM38126x4::LEARNING_LIGHT_R));
+    
     // Output
     addOutput(Port::create<PJ301MPort>(Vec(20, 300), Port::OUTPUT, module, YM38126x4::LEFT_OUTPUT));
     addOutput(Port::create<PJ301MPort>(Vec(40, 320), Port::OUTPUT, module, YM38126x4::RIGHT_OUTPUT));
   }
 };
 
-Model *modelYM38126x4 = Model::create<YM38126x4, YM38126x4Widget>("YMod3812", "0x02-6x4", "YM3812 4 voices FM synthesizer", OSCILLATOR_TAG);
+Model *modelYM38126x4 = Model::create<YM38126x4, YM38126x4Widget>("YMod3812", "0x02-6x4", "YMF262-based 6 voices FM synthesizer", OSCILLATOR_TAG);
