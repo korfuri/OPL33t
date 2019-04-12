@@ -5,7 +5,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch"
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
-#include "deps/adlmidi/dbopl.h"
+#include "deps/adlmidi/src/dbopl.h"
 #pragma GCC diagnostic pop
 
 #pragma GCC diagnostic push

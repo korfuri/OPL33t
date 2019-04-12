@@ -19,13 +19,23 @@ CXXFLAGS += -Isrc/deps/libbinio/src
 LDFLAGS +=
 
 # Add .cpp and .c files to the build
-SOURCES += $(wildcard src/*.cpp) src/deps/adlmidi/dbopl.cpp
+SOURCES += $(wildcard src/*.cpp) src/deps/adlmidi/src/dbopl.cpp
 
-OBJECTS += src/deps/adplug/src/.libs/libadplug.a src/deps/libbinio/src/.libs/libbinio.a
+OBJECTS += src/deps/libadplug.a src/deps/libbinio.a
 
 # Add files to the ZIP package when running `make dist`
 # The compiled plugin is automatically added.
 DISTRIBUTABLES += $(wildcard LICENSE*) res
+
+deps: src/deps/libbinio.a src/deps/libadplug.a
+
+src/deps/libbinio.a: $(wildcard src/deps/libbinio/**)
+	(cd src/deps/libbinio/ && autoreconf --install && ./configure --with-pic --enable-static && make -j4 || true)
+	cp src/deps/libbinio/src/.libs/libbinio.a src/deps/libbinio.a
+
+src/deps/libadplug.a: $(wildcard src/deps/adplug/**)
+	(cd src/deps/adplug/ && autoreconf --install && ./configure --with-pic --enable-static && make -j4)
+	cp src/deps/adplug/src/.libs/libadplug.a src/deps/libadplug.a
 
 # Include the VCV Rack plugin Makefile framework
 include $(RACK_DIR)/plugin.mk
