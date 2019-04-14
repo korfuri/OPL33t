@@ -8,5 +8,5 @@ extern Plugin *plugin;
 
 // Forward-declare each Model, defined in each module source file
 extern Model *modelMyModule;
-extern Model *modelYM3812Player;
-extern Model *modelYM38126x4;
+extern Model *modelPlayer;
+extern Model *model6x4;

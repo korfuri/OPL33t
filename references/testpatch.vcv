@@ -413,6 +413,14 @@
           "value": 2.0
         },
         {
+          "paramId": 56,
+          "value": -1.0
+        },
+        {
+          "paramId": 57,
+          "value": -1.0
+        },
+        {
           "paramId": 50,
           "value": -1.0
         },
@@ -437,7 +445,7 @@
           "value": -1.0
         },
         {
-          "paramId": 56,
+          "paramId": 58,
           "value": -1.0
         }
       ],
@@ -487,7 +495,7 @@
         },
         {
           "paramId": 37,
-          "value": 0.0
+          "value": 2.0
         },
         {
           "paramId": 73,
@@ -804,17 +812,17 @@
           "deviceName": "MPKmini2:MPKmini2 MIDI 1 20:0",
           "channel": -1
         },
-        "key0": 88,
+        "key0": 93,
         "mode0": 0,
-        "key1": 91,
+        "key1": 81,
         "mode1": 0,
-        "key2": 72,
+        "key2": 86,
         "mode2": 0,
-        "key3": 75,
+        "key3": 81,
         "mode3": 0,
-        "key4": 79,
+        "key4": 81,
         "mode4": 0,
-        "key5": 84,
+        "key5": 81,
         "mode5": 0,
         "key6": 54,
         "mode6": 2,

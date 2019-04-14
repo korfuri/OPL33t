@@ -1,6 +1,5 @@
-#include "Template.hpp"
+#include "OPL33t.hpp"
 #include "osdialog.h"
-
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch"
@@ -17,7 +16,7 @@
 struct AdPlugOPLCompatibility : Copl {
   DBOPL::Handler dbopl_;
   unsigned int rate_;
-  
+
   AdPlugOPLCompatibility(unsigned int rate) : Copl(), rate_(rate) {
     currType = ChipType::TYPE_OPL3;
     init();
@@ -43,7 +42,7 @@ struct AdPlugOPLCompatibility : Copl {
   }
 };
 
-struct YM3812Player : Module {
+struct Player : Module {
   enum ParamIds {
     CLOCK_SPEED_PARAM,
     NUM_PARAMS
@@ -66,13 +65,13 @@ struct YM3812Player : Module {
   CPlayer* player_ = nullptr;
   float nextPlayerUpdateIn_ = 0.0f;
 
-  YM3812Player() :
+  Player() :
     Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS),
     opl_(44100 /* rate */)
   {
   }
 
-  void reset() {
+  void reset() override {
     opl_.init();
     setPlaying("/dev/null");
   }
@@ -108,7 +107,7 @@ struct YM3812Player : Module {
   }
 };
 
-static void selectTrackFileAndPlay(YM3812Player* module) {
+static void selectTrackFileAndPlay(Player* module) {
   // Build a filename filter
   std::string filtersdesc = "All files:*;";
   for (auto const& r : CAdPlug::players) {
@@ -135,29 +134,29 @@ static void selectTrackFileAndPlay(YM3812Player* module) {
   }
 }
 
-struct YM3812PlayerWidget : ModuleWidget {
-  YM3812Player* module_;
+struct PlayerWidget : ModuleWidget {
+  Player* module_;
 
-  YM3812PlayerWidget(YM3812Player *module) : ModuleWidget(module), module_(module) {
-    setPanel(SVG::load(assetPlugin(plugin, "res/YM3812Player.svg")));
+  PlayerWidget(Player *module) : ModuleWidget(module), module_(module) {
+    setPanel(SVG::load(assetPlugin(plugin, "res/Player.svg")));
 
     addChild(Widget::create<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
     addChild(Widget::create<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
     addChild(Widget::create<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
     addChild(Widget::create<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-    addOutput(Port::create<PJ301MPort>(Vec(20, 300), Port::OUTPUT, module, YM3812Player::LEFT_OUTPUT));
-    addOutput(Port::create<PJ301MPort>(Vec(40, 320), Port::OUTPUT, module, YM3812Player::RIGHT_OUTPUT));
+    addOutput(Port::create<PJ301MPort>(Vec(20, 300), Port::OUTPUT, module, Player::LEFT_OUTPUT));
+    addOutput(Port::create<PJ301MPort>(Vec(40, 320), Port::OUTPUT, module, Player::RIGHT_OUTPUT));
 
-    addParam(ParamWidget::create<Davies1900hBlackKnob>(Vec(10, 10), module, YM3812Player::CLOCK_SPEED_PARAM, 0.0, 16.0, 1.0));
-    addInput(Port::create<PJ301MPort>(Vec(10, 40), Port::INPUT, module, YM3812Player::CLOCK_SPEED_INPUT));
+    addParam(ParamWidget::create<Davies1900hBlackKnob>(Vec(10, 10), module, Player::CLOCK_SPEED_PARAM, 0.0, 16.0, 1.0));
+    addInput(Port::create<PJ301MPort>(Vec(10, 40), Port::INPUT, module, Player::CLOCK_SPEED_INPUT));
   }
 
   void appendContextMenu(Menu* menu) override {
     menu->addChild(MenuEntry::create());
 
     struct LoadTrackMenuItem : MenuItem {
-      YM3812Player* module;
+      Player* module;
 
       void onAction(EventAction& e) override {
 	selectTrackFileAndPlay(module);
@@ -168,7 +167,6 @@ struct YM3812PlayerWidget : ModuleWidget {
     load->module = module_;
     menu->addChild(load);
   }
-
 };
 
-Model *modelYM3812Player = Model::create<YM3812Player, YM3812PlayerWidget>("YMod3812", "0x01Player", "YM3812 Track player", OSCILLATOR_TAG);
+Model *modelPlayer = Model::create<Player, PlayerWidget>("OPL33t", "OPL3 Player", "OPL3 Track player", OSCILLATOR_TAG, DIGITAL_TAG, DUAL_TAG, SAMPLER_TAG);
