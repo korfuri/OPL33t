@@ -1,13 +1,13 @@
+# OPL33t modules for VCV Rack
 
-# VCV Template plugin
+This collection of modules provides access to features of the Yamaha
+OPL chip family. This is the family of chips that powered AdLib and
+SoundBlaster cards in the 80's/90's and they sound awesome.
 
-The VCV Template plugin is a starting point for developing your own plugins for VCV Rack.
-It implements a simple sine VCO, demonstrating inputs, outputs, parameters, and other concepts.
-
-See https://vcvrack.com/manual/PluginDevelopmentTutorial.html for a development tutorial.
+This is a work in progress.
 
 ## Contributing
 
 I welcome Issues and Pull Requests to this repository if you have suggestions for improvement.
 
-This template is released into the public domain ([CC0](https://creativecommons.org/publicdomain/zero/1.0/)).
+This plugin is released under the GPL3 license. See the LICENSE file for full details.
