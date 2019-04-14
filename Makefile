@@ -3,7 +3,7 @@ RACK_DIR ?= ../..
 
 # Must follow the format in the Naming section of
 # https://vcvrack.com/manual/PluginDevelopmentTutorial.html
-SLUG = Template
+SLUG = OPL33t
 
 # Must follow the format in the Versioning section of
 # https://vcvrack.com/manual/PluginDevelopmentTutorial.html
@@ -39,8 +39,8 @@ src/deps/libbinio.a: $(wildcard src/deps/libbinio/**)
 	(cd src/deps/libbinio/ && autoreconf --install && ./configure --with-pic --enable-static && touch ./doc/version.texi && touch ./doc/version-remake.texi && make -j4 || true)
 	cp src/deps/libbinio/src/.libs/libbinio.a src/deps/libbinio.a
 
-src/deps/libadplug.a: $(wildcard src/deps/adplug/**)
-	(cd src/deps/adplug/ && autoreconf --install && ./configure --with-pic --enable-static && make -j4)
+src/deps/libadplug.a: $(wildcard src/deps/adplug/**) src/deps/libbinio.a
+	(cd src/deps/adplug/ && autoreconf --install && PKG_CONFIG_PATH="../libbinio" libbinio_CFLAGS="-I../libbinio/src" libbinio_LIBS="-L../libbinio/src/.libs -lbinio" ./configure --with-pic --enable-static && make -j4)
 	cp src/deps/adplug/src/.libs/libadplug.a src/deps/libadplug.a
 
 # Include the VCV Rack plugin Makefile framework
