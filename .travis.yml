@@ -9,8 +9,8 @@ matrix:
     before_install:
       - choco install make -y
       - choco install msys2 -y
-      - call RefreshEnv.cmd
       - echo $PATH
+      - ls -laR /c/tools/msys64
 
 git:
   submodules: true
