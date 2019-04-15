@@ -5,10 +5,11 @@ matrix:
   - os: linux
     dist: xenial
   - os: osx
-  # - os: windows
-  #   before_install:
-  #     - choco install make -y
-  #     - choco install msys2 -y
+  - os: windows
+    before_install:
+      - choco install make -y
+      - choco install msys2 -y
+      - echo $PATH
 
 git:
   submodules: true
