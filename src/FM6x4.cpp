@@ -356,12 +356,25 @@ struct FM6x4 : Module {
   }
 };
 
+// This should be a lookup table, but populating a sparse float array
+// is hard with older versions of GCC that do not have full support
+// for array member designated initializers.
+static float defaultParamForValue(int paramID) {
+  switch (paramID) {
+    // Give operator 4 a decent default envelope
+  case FM6x4::SUSTAIN_TOGGLE_PARAM + 3: return 1.0f;
+  case FM6x4::ATTACK_PARAM + 3: return 8.0f;
+  case FM6x4::RELEASE_PARAM + 3: return 8.0f;
+  default: return 0.0f;
+  }
+}
+
 struct FM6x4Widget : ModuleWidget {
   FM6x4* module_;
 
   template<typename T>
   void addLearnableParam(Vec v, FM6x4* module, int param, float min, float max, float defaultf) {
-    addParam(ParamWidget::create<T>(v, module, param, min, max, defaultf));
+    addParam(ParamWidget::create<T>(v, module, param, min, max, defaultParamForValue(param)));
     addChild(ModuleLightWidget::create<SmallLight<BorderLEDLight<RGBLight>>>(v.plus(Vec(2, -2)), module, FM6x4::LEARNED_PARAM_LIGHT + param * 3));
   }
 
