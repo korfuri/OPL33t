@@ -30,6 +30,7 @@ script:
 - export RACK_DIR="${HOME}"/Rack/Rack-SDK
 - $BASH "make deps"
 - $BASH "make dist"
+- ls -laR dist/
 
 deploy:
   provider: releases
