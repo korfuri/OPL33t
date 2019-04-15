@@ -8,7 +8,7 @@ matrix:
   - os: osx
     env: BASH="bash -c"
   - os: windows
-    env: BASH="/c/tools/msys64/usr/bin/bash -l -c"
+    env: BASH="travis_wait /c/tools/msys64/usr/bin/bash -l -c"
     before_install:
       - choco install make -y
       - choco install msys2 -y
