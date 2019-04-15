@@ -4,8 +4,11 @@ matrix:
   include:
   - os: linux
     dist: xenial
+    env: BASH="bash -c"
   - os: osx
+    env: BASH="bash -c"
   - os: windows
+    env: BASH="/c/tools/msys64/usr/bin/bash -l -c"
     before_install:
       - choco install make -y
       - choco install msys2 -y
@@ -25,8 +28,8 @@ install:
 
 script:
 - export RACK_DIR="${HOME}"/Rack/Rack-SDK
-- make deps
-- make dist
+- $BASH "make deps"
+- $BASH "make dist"
 
 deploy:
   provider: releases
