@@ -9,6 +9,7 @@ matrix:
     before_install:
       - choco install make -y
       - choco install msys2 -y
+      - call RefreshEnv.cmd
       - echo $PATH
 
 git:
