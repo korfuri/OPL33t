@@ -104,6 +104,18 @@ struct FM6x4 : Module {
     // We treat all voices as the same instrument, so it's a single 6-voices instrument.
     // This means that all writes that affect an operator are done 6 times, for each operator.
 
+    runInitialBytecode();
+
+    for (auto& lp : learnedParams) {
+      lp = -1;
+    }
+  }
+
+  void reset() override {
+    runInitialBytecode();
+  }
+
+  void runInitialBytecode() {
     opl_.Init(44100); // TODO handle other rates!
 
     // Init code
@@ -113,14 +125,6 @@ struct FM6x4 : Module {
     opl_.WriteReg(0x01, 1<<5); // Enable waveform selection per operator
     opl_.WriteReg(0x105, 0x01); // Enable OPL3 features
     opl_.WriteReg(0x104, 0xff); // Enable 4-OP for all 6 channels
-
-    for (auto& lp : learnedParams) {
-      lp = -1;
-    }
-  }
-
-  void reset() override {
-    opl_.Init(44100); // TODO handle other rates!
   }
 
   void writeRegister(unsigned int reg, uint8_t value) {
@@ -202,7 +206,7 @@ struct FM6x4 : Module {
     lights[LEARNING_LIGHT_R].setBrightness(kColorForLearningChannel[learningStatus_][0]);
     lights[LEARNING_LIGHT_G].setBrightness(kColorForLearningChannel[learningStatus_][1]);
     lights[LEARNING_LIGHT_B].setBrightness(kColorForLearningChannel[learningStatus_][2]);
-    
+
     //// Configure the chip
     // 21	Operator 1	Tremolo/Vibrato/Sustain/KSR/Multiplication
     // 24	Operator 2	Tremolo/Vibrato/Sustain/KSR/Multiplication
