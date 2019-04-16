@@ -36,7 +36,7 @@ script:
   else
      make deps;
      make dist;
-  fi
+  fi; exit $?
 - ls -laR dist/
 
 deploy:
