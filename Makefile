@@ -21,7 +21,8 @@ LDFLAGS +=
 # Add .cpp and .c files to the build
 SOURCES += $(wildcard src/*.cpp) src/deps/adlmidi/src/dbopl.cpp
 
-DEPS_LIBS = src/deps/libadplug.a src/deps/libbinio.a
+LIB_EXTENSION ?= a
+DEPS_LIBS = src/deps/libadplug.$(LIB_EXTENSION) src/deps/libbinio.$(LIB_EXTENSION)
 OBJECTS += $(DEPS_LIBS)
 
 # Add files to the ZIP package when running `make dist`
@@ -35,15 +36,15 @@ depsclean:
 	(cd src/deps/libbinio && make clean)
 	(cd src/deps/adplug && make clean)
 
-src/deps/libbinio.a: $(wildcard src/deps/libbinio/**)
+src/deps/libbinio.$(LIB_EXTENSION): $(wildcard src/deps/libbinio/**)
 	echo "=== Building libbinio ==="
 	(cd src/deps/libbinio/ && autoreconf --install && ./configure --with-pic --enable-static && touch ./doc/version.texi && touch ./doc/version-remake.texi && make -j4 -k || true)
-	cp src/deps/libbinio/src/.libs/libbinio.a src/deps/libbinio.a
+	cp src/deps/libbinio/src/.libs/libbinio.$(LIB_EXTENSION) src/deps/libbinio.$(LIB_EXTENSION)
 
-src/deps/libadplug.a: $(wildcard src/deps/adplug/**) src/deps/libbinio.a
+src/deps/libadplug.$(LIB_EXTENSION): $(wildcard src/deps/adplug/**) src/deps/libbinio.$(LIB_EXTENSION)
 	echo "=== Building libadplug ==="
 	(cd src/deps/adplug/ && autoreconf --install && PKG_CONFIG_PATH="../libbinio" libbinio_CFLAGS="-I../libbinio/src" libbinio_LIBS="-L../libbinio/src/.libs -lbinio" ./configure --with-pic --enable-static && make -j4 -k || true)
-	cp src/deps/adplug/src/.libs/libadplug.a src/deps/libadplug.a
+	cp src/deps/adplug/src/.libs/libadplug.$(LIB_EXTENSION) src/deps/libadplug.$(LIB_EXTENSION)
 
 # Include the VCV Rack plugin Makefile framework
 include $(RACK_DIR)/plugin.mk
