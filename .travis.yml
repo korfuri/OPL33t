@@ -29,7 +29,8 @@ install:
 script:
 - export RACK_DIR="${HOME}"/Rack/Rack-SDK
 - if [[ $OS_BUILD == "win" ]]; then
-     export PATH==/cygdrive/c/tools/cygwin/bin:$PATH;
+     export PATH=/cygdrive/c/tools/cygwin/bin:$PATH;
+     echo "Building on Windows";
      powershell -Command "C:\tools\cygwin\bin\bash.exe -c 'make deps'";
      powershell -Command "C:\tools\cygwin\bin\bash.exe -c 'make dist'";
   else
