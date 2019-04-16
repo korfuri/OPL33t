@@ -28,7 +28,7 @@ install:
 
 script:
 - export RACK_DIR="${HOME}"/Rack/Rack-SDK
-- echo "Path inside travis.yml: $PATH"
+- echo Path inside travis.yml $PATH
 - if [[ $OS_BUILD == "win" ]]; then
      echo "Building on Windows";
      powershell -Command "C:\tools\cygwin\bin\bash.exe -c './build-windows-travis.sh'";
