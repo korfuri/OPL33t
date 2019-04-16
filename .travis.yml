@@ -13,7 +13,7 @@ matrix:
     # env: BASH="travis_wait /c/tools/msys64/usr/bin/bash -l -c"
     before_install:
       - choco install cygwin
-      - C:\\tools\\cygwin\\cygwinsetup.exe -q -P make,automake,autoconf
+      - C:\\tools\\cygwin\\cygwinsetup.exe -q -P make,automake,autoconf,libtool
     env: OS_BUILD=win
 
 git:
