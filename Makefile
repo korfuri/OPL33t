@@ -36,11 +36,11 @@ depsclean:
 	(cd src/deps/adplug && make clean)
 
 src/deps/libbinio.a: $(wildcard src/deps/libbinio/**)
-	(cd src/deps/libbinio/ && autoreconf --install && ./configure --with-pic --enable-static && touch ./doc/version.texi && touch ./doc/version-remake.texi && make -j4 -k || true)
+	bash -c '(cd src/deps/libbinio/ && autoreconf --install && ./configure --with-pic --enable-static && touch ./doc/version.texi && touch ./doc/version-remake.texi && make -j4 -k; true)'
 	cp src/deps/libbinio/src/.libs/libbinio.a src/deps/libbinio.a
 
 src/deps/libadplug.a: $(wildcard src/deps/adplug/**) src/deps/libbinio.a
-	(cd src/deps/adplug/ && autoreconf --install && PKG_CONFIG_PATH="../libbinio" libbinio_CFLAGS="-I../libbinio/src" libbinio_LIBS="-L../libbinio/src/.libs -lbinio" ./configure --with-pic --enable-static && make -j4 -k || true)
+	bash -c '(cd src/deps/adplug/ && autoreconf --install && PKG_CONFIG_PATH="../libbinio" libbinio_CFLAGS="-I../libbinio/src" libbinio_LIBS="-L../libbinio/src/.libs -lbinio" ./configure --with-pic --enable-static && make -j4 -k; true)'
 	cp src/deps/adplug/src/.libs/libadplug.a src/deps/libadplug.a
 
 # Include the VCV Rack plugin Makefile framework

@@ -4,17 +4,17 @@ matrix:
   include:
   - os: linux
     dist: xenial
-    env: BASH="bash -c"
+    # env: BASH="bash -c"
   - os: osx
-    env: BASH="bash -c"
+    # env: BASH="bash -c"
   - os: windows
-    env: BASH="travis_wait /c/tools/msys64/usr/bin/bash -l -c"
-    before_install:
-      - choco install make -y
-      - choco install msys2 -y
-      - echo $PATH
-      - travis_wait /c/tools/msys64/usr/bin/bash -l -c pacman -Svyu
-      - travis_wait /c/tools/msys64/usr/bin/bash -l -c pacman -Svyu git wget make tar unzip zip mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake autoconf automake mingw-w64-x86_64-libtool mingw-w64-x86_64-jq
+    # env: BASH="travis_wait /c/tools/msys64/usr/bin/bash -l -c"
+    # before_install:
+    #   - choco install make -y
+    #   - choco install msys2 -y
+    #   - echo $PATH
+    #   - travis_wait /c/tools/msys64/usr/bin/bash -l -c pacman -Svyu
+    #   - travis_wait /c/tools/msys64/usr/bin/bash -l -c pacman -Svyu git wget make tar unzip zip mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake autoconf automake mingw-w64-x86_64-libtool mingw-w64-x86_64-jq
 
 git:
   submodules: true
@@ -28,8 +28,8 @@ install:
 
 script:
 - export RACK_DIR="${HOME}"/Rack/Rack-SDK
-- $BASH make deps
-- $BASH make dist
+- make deps
+- make dist
 - ls -laR dist/
 
 deploy:
