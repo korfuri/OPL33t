@@ -5,14 +5,17 @@ matrix:
   - os: linux
     dist: xenial
     # env: BASH="bash -c"
+    env: OS_BUILD=lin
   - os: osx
     # env: BASH="bash -c"
+    env: OS_BUILD=osx
   - os: windows
     # env: BASH="travis_wait /c/tools/msys64/usr/bin/bash -l -c"
     before_install:
       - choco install cygwin
       - C:\\tools\\cygwin\\cygwinsetup.exe -q -P make,automake,autoconf
-      
+    env: OS_BUILD=win
+
 git:
   submodules: true
 
@@ -25,8 +28,14 @@ install:
 
 script:
 - export RACK_DIR="${HOME}"/Rack/Rack-SDK
-- make deps
-- make dist
+- if [[ $OS_BUILD == "win" ]]; then
+     export PATH==/cygdrive/c/tools/cygwin/bin:$PATH
+     powershell -Command "C:\tools\cygwin\bin\bash.exe -c 'make deps'";
+     powershell -Command "C:\tools\cygwin\bin\bash.exe -c 'make dist'";
+  else
+     make deps
+     make dist
+  fi
 - ls -laR dist/
 
 deploy:
